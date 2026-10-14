@@ -58,8 +58,8 @@ jobs:
               "vertical scroll height"
           )
           replace_once(
-              "  function goToScene(i) {\n    const target = clamp(Math.round(i), 0, N - 1);\n    scrollTo({ top: target === 0 ? 0 : startOf(target) + 6, behavior: reduce ? 'auto' : 'smooth' });\n  }",
-              "  function goToScene(i) {\n    const target = clamp(Math.round(i), 0, N - 1);\n    if (mobileVertical) {\n      const el = scenes[target];\n      const top = el.getBoundingClientRect().top + scrollY;\n      scrollTo({ top: Math.max(0, top - 8), behavior: reduce ? 'auto' : 'smooth' });\n      return;\n    }\n    scrollTo({ top: target === 0 ? 0 : startOf(target) + 6, behavior: reduce ? 'auto' : 'smooth' });\n  }",
+              "  let lastScene = -1;\n  nds.forEach(n => n.addEventListener('click', () => {\n    const i = +n.dataset.go; scrollTo({ top: i === 0 ? 0 : startOf(i) + 6, behavior: reduce ? 'auto' : 'smooth' });\n  }));",
+              "  let lastScene = -1;\n  nds.forEach(n => n.addEventListener('click', () => {\n    const i = clamp(+n.dataset.go, 0, N - 1);\n    if (mobileVertical) {\n      const top = scenes[i].getBoundingClientRect().top + scrollY;\n      scrollTo({ top: Math.max(0, top - 8), behavior: reduce ? 'auto' : 'smooth' });\n    } else {\n      scrollTo({ top: i === 0 ? 0 : startOf(i) + 6, behavior: reduce ? 'auto' : 'smooth' });\n    }\n  }));",
               "mobile rail navigation"
           )
 
@@ -81,7 +81,7 @@ jobs:
               const top = rect.top + y;
               const height = Math.max(rect.height, vh * 1.2);
 
-              // Elementos surgem conforme a pessoa percorre a etapa com o dedo.
+              // Reveal each scene gradually as the reader scrolls through it.
               const p = i === 0 ? 1 : clamp((y + vh * .78 - top) / height);
               setP(i, p);
               el.style.visibility = 'visible';
@@ -119,11 +119,6 @@ jobs:
               cNum.textContent = active === 0 ? 'Role para começar' :
                 'Etapa ' + String(active).padStart(2, '0') + ' de 05';
               setDock(active);
-              mobileStep.textContent = active === 0 ? 'Início' :
-                String(active).padStart(2, '0') + ' / 05';
-              prevScene.disabled = active === 0;
-              nextScene.disabled = active === N - 1;
-              nextScene.textContent = active === N - 1 ? 'Fim ✓' : 'Avançar →';
             }
             hint.style.opacity = 0;
             ho.style.setProperty('--o', '0');
