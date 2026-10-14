@@ -79,10 +79,10 @@ jobs:
               const el = scenes[i];
               const rect = el.getBoundingClientRect();
               const top = rect.top + y;
-              const height = Math.max(rect.height, vh * 1.2);
+              const height = Math.max(rect.height, 1);
 
-              // Reveal each scene gradually as the reader scrolls through it.
-              const p = i === 0 ? 1 : clamp((y + vh * .78 - top) / height);
+              // Reveal the step in sync with actual vertical scroll, without long empty pauses.
+              const p = i === 0 ? 1 : clamp((y + vh * .18 - top) / height);
               setP(i, p);
               el.style.visibility = 'visible';
 
@@ -101,8 +101,8 @@ jobs:
             if (!intersects) active = closest;
             const rect = scenes[active].getBoundingClientRect();
             const top = rect.top + y;
-            const height = Math.max(rect.height, vh * 1.2);
-            const local = active === 0 ? 0 : clamp((y + vh * .58 - top) / height);
+            const height = Math.max(rect.height, 1);
+            const local = active === 0 ? 0 : clamp((y + vh * .42 - top) / height);
             const camera = active === 0 ? 0 : (active - 1) + local;
             const frac = clamp(camera / (N - 1));
 
@@ -149,30 +149,51 @@ jobs:
             .hud { position:fixed; top:0; left:0; right:0; }
             .stage { position:relative!important; inset:auto!important; width:100%!important; height:auto!important; min-height:0!important; overflow:visible!important; touch-action:pan-y!important; }
             .world { display:flex!important; flex-direction:column!important; width:100%!important; height:auto!important; transform:none!important; will-change:auto!important; }
-            .scene { position:relative!important; display:flex!important; flex:0 0 auto!important; width:100%!important; height:auto!important; min-height:135svh; align-items:flex-start!important; justify-content:flex-start!important; overflow:visible!important; padding:calc(var(--hud) + env(safe-area-inset-top,0px) + 18px) 0 calc(var(--dock) + env(safe-area-inset-bottom,0px) + 26px)!important; scroll-margin-top:calc(var(--hud) + env(safe-area-inset-top,0px) + 10px); visibility:visible!important; }
-            .wrap { width:calc(100% - 28px)!important; max-height:none!important; min-height:0!important; height:auto!important; margin:0 auto!important; justify-content:flex-start!important; transform:none!important; }
+            .scene { position:relative!important; display:flex!important; flex:0 0 auto!important; flex-direction:column!important; width:100%!important; height:auto!important; min-height:0!important; align-items:stretch!important; justify-content:flex-start!important; overflow:visible!important; padding:calc(var(--hud) + env(safe-area-inset-top,0px) + 20px) 0 20px!important; scroll-margin-top:calc(var(--hud) + env(safe-area-inset-top,0px) + 10px); visibility:visible!important; }
+            .scene:not(:last-child)::after { content:"↓  PRÓXIMA ETAPA"; display:flex; align-items:center; justify-content:center; width:max-content; max-width:calc(100% - 28px); margin:18px auto 8px; padding:8px 14px; border:1px solid var(--line); border-radius:999px; color:var(--vio2); background:color-mix(in srgb,var(--vio) 10%,var(--bg)); box-shadow:0 8px 24px -16px var(--glow); font:700 10px Sora,Manrope,sans-serif; letter-spacing:.07em; }
+            .scene:last-child { padding-bottom:calc(104px + env(safe-area-inset-bottom,0px) + 16px)!important; }
+            .wrap { width:calc(100% - 28px)!important; max-height:none!important; min-height:0!important; height:auto!important; flex:none!important; margin:0 auto!important; justify-content:flex-start!important; transform:none!important; }
             .hero .wrap { flex-direction:column!important; align-items:flex-start!important; justify-content:flex-start!important; gap:16px!important; }
             .hero-l { flex:1 1 auto!important; width:100%!important; min-width:0!important; }
-            .h1 { font-size:clamp(34px,10vw,54px)!important; }
+            .h1 { font-size:clamp(34px,10vw,54px)!important; line-height:1.04!important; }
+            .lead { font-size:14px!important; line-height:1.55!important; }
             .orbit { display:none!important; }
             .brief { display:flex!important; flex-direction:column!important; gap:10px!important; }
             .deliv { display:grid!important; }
             .mv { display:block!important; }
             .loop,.note { display:block!important; }
-            .grid2,.out-grid { grid-template-columns:minmax(0,1fr)!important; }
-            .mods,.exec { grid-template-columns:minmax(0,1fr)!important; }
+            .grid2,.out-grid { grid-template-columns:minmax(0,1fr)!important; gap:12px!important; }
+            .mods,.exec { grid-template-columns:minmax(0,1fr)!important; gap:12px!important; }
+            .mod>p,.xn>p { min-height:0!important; }
+            .xn:not(:last-child)::after { content:"↓"; position:static!important; display:flex!important; align-items:center!important; justify-content:center!important; width:100%!important; height:22px!important; margin:12px 0 -4px!important; background:none!important; color:var(--teal)!important; font:800 18px Sora,sans-serif!important; }
+            .loop { margin:16px auto 0!important; width:56px!important; height:20px!important; }
+            .loop span { left:50%!important; width:180px!important; white-space:normal!important; text-align:center!important; line-height:1.35!important; }
+            .note { font-size:12px!important; line-height:1.5!important; margin:24px auto 0!important; max-width:34em!important; text-align:center!important; }
             .hint,.handoff,.mobile-nav { display:none!important; }
             #spacer { display:none!important; width:0!important; height:0!important; }
-            .dock { position:fixed; z-index:30; }
-            .dock-in { grid-template-columns:repeat(4,minmax(0,1fr))!important; }
-            .cell { min-width:0; }
+            .dock { position:fixed!important; z-index:30!important; padding:0 8px calc(env(safe-area-inset-bottom,0px) + 6px)!important; }
+            .dock-in { grid-template-columns:repeat(4,minmax(0,1fr))!important; gap:3px!important; padding:5px!important; border-radius:15px!important; }
+            .cell { min-width:0!important; padding:5px 2px!important; flex-direction:column!important; align-items:center!important; text-align:center!important; gap:3px!important; border-radius:10px!important; }
+            .cell .ic { width:20px!important; height:20px!important; padding:4px!important; border-radius:7px!important; }
+            .cell b { font-size:9.5px!important; line-height:1.15!important; overflow-wrap:anywhere; }
+            .cell small,.dlab { display:none!important; }
+            .dcap { max-width:calc(100vw - 24px)!important; width:max-content!important; white-space:normal!important; text-align:center!important; font-size:10px!important; }
             .scene .wrap > * { max-width:100%; }
             .hero .metrics { display:grid; grid-template-columns:minmax(0,1fr); width:100%; }
             .hero .metrics>div { width:100%; }
+            .shead { align-items:flex-start!important; gap:11px!important; margin-bottom:14px!important; }
+            .shead h2 { font-size:clamp(22px,6.5vw,28px)!important; line-height:1.1!important; }
+            .shead p { font-size:12px!important; line-height:1.4!important; }
+            .steps li { transform:translateY(8px); }
+            .steps li.in { transform:none; }
+            .stamp { right:10px!important; bottom:10px!important; font-size:10px!important; }
+            .fin { flex-direction:column!important; gap:18px!important; }
+            .pw { --ph:min(42vh,340px); }
+            .fin-r { max-width:none!important; width:100%!important; }
           }
           @media (max-width:390px) {
-            .scene { min-height:145svh; }
             .h1 { font-size:clamp(32px,9.6vw,44px)!important; }
+            .scene:not(:last-child)::after { margin-top:14px; }
           }
           </style>'''
 
