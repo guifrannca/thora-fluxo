@@ -3,12 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10082f">
 <title>Thora — Da demanda à entrega</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;min-height:100%;background:#10082f;color:#f4f0ff;font:16px system-ui,sans-serif}
+body{min-height:100vh;display:grid;place-items:center}
+#load{text-align:center;max-width:28rem;padding:2rem;line-height:1.6}
+.spinner{margin:0 auto 1.2rem;width:30px;height:30px;border:3px solid #ffffff30;border-top-color:#9c7cff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
-<p>Versão publicada pela equipe Thora.</p>
+<div id="load"><div class="spinner"></div>Preparando a experiência interativa da Thora…</div>
+<script>
+(async () => {
+  const load = document.getElementById('load');
+  try {
+    const paths = [
+      'payload/part1.txt',
+      'payload/part2.txt',
+      'payload/part2b.txt',
+      'payload/part3.txt',
+      'payload/part4.txt'
+    ];
+    const chunks = await Promise.all(paths.map(async path => {
+      const response = await fetch(path, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Não foi possível carregar ' + path);
+      return response.text();
+    }));
+    const binary = atob(chunks.join('').replace(/\s/g, ''));
+    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+    if (!('DecompressionStream' in window)) {
+      throw new Error('Este navegador não oferece suporte à descompactação necessária. Tente atualizar o navegador.');
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const html = await new Response(stream).text();
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (error) {
+    load.innerHTML = '<h1>Não foi possível abrir a apresentação</h1><p>Confira sua conexão e tente atualizar a página.</p><small></small>';
+    load.querySelector('small').textContent = error.message;
+  }
+})();
+</script>
 </body>
 </html>
