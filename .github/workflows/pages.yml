@@ -35,6 +35,7 @@ jobs:
 
           cat > /tmp/mobile-enhancement.html <<'HTML'
           <style>
+          .mobile-timeline-nav { display:none; }
           @media (max-width: 860px) {
             html { height:auto!important; min-height:100%; overflow-x:hidden!important; overflow-y:auto!important; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
             body { height:auto!important; min-height:100%; overflow-x:hidden!important; overflow-y:visible!important; touch-action:pan-y; }
