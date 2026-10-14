@@ -37,7 +37,79 @@ body{min-height:100vh;display:grid;place-items:center}
       throw new Error('Este navegador não oferece suporte à descompactação necessária. Tente atualizar o navegador.');
     }
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const html = await new Response(stream).text();
+    let html = await new Response(stream).text();
+
+    // Ajusta a navegação mobile do HTML antes de renderizar.
+    function patch(from, to, label) {
+      if (!html.includes(from)) throw new Error('Ajuste mobile não encontrado: ' + label);
+      html = html.replace(from, to);
+    }
+    patch(
+      '  html, body { width:100%; height:100%; overflow:hidden; overscroll-behavior:none; }',
+      '  html { width:100%; min-height:100%; height:auto; overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:none; }\n  body { width:100%; min-height:100%; height:auto; overflow-x:visible; overflow-y:visible; overscroll-behavior-y:none; }',
+      'rolagem mobile'
+    );
+    patch(
+      '/* ---------- responsivo ---------- */',
+      '.mobile-nav{display:none}\n\n/* ---------- responsivo ---------- */',
+      'estilo base da navegação'
+    );
+    patch(
+      '  .stage { overflow:hidden; touch-action:pan-y; }\n  .world { height:100%; }',
+      '  .stage { overflow:hidden; touch-action:pan-y; }\n  .world { height:100%; }\n  .mobile-nav { display:flex; position:fixed; z-index:29; left:12px; right:12px;\n    bottom:calc(var(--dock) + env(safe-area-inset-bottom,0px) + 16px);\n    align-items:center; justify-content:space-between; gap:8px; padding:7px;\n    border:1px solid var(--line); border-radius:16px; background:var(--surf2);\n    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); box-shadow:var(--shadow); }\n  .mobile-nav button { min-height:40px; border:1px solid var(--line); border-radius:11px;\n    padding:8px 12px; background:var(--surf); color:var(--ink); font-size:12px; font-weight:800; }\n  .mobile-nav button.primary { background:linear-gradient(140deg,var(--vio2),var(--vio)); color:#fff; border-color:transparent; }\n  .mobile-nav button:disabled { opacity:.35; }\n  .mobile-nav .step-label { min-width:42px; text-align:center; color:var(--mut); font-size:10px; font-weight:800; }\n  .hint { display:none; }',
+      'controles visíveis mobile'
+    );
+    patch(
+      'padding:calc(var(--hud) + env(safe-area-inset-top,0px) + 16px) 0 calc(var(--dock) + env(safe-area-inset-bottom,0px) + 28px);',
+      'padding:calc(var(--hud) + env(safe-area-inset-top,0px) + 16px) 0 calc(var(--dock) + env(safe-area-inset-bottom,0px) + 82px);',
+      'espaço para os controles'
+    );
+    patch(
+      '<div class="hint" id="hint"><span class="mouse"></span><span>Role para a demanda avançar</span></div>',
+      '<nav class="mobile-nav" aria-label="Navegação da timeline">\n  <button type="button" id="prevScene" aria-label="Ir para a etapa anterior">← Voltar</button>\n  <span class="step-label" id="mobileStep" aria-live="polite">Início</span>\n  <button type="button" class="primary" id="nextScene" aria-label="Avançar para a próxima etapa">Avançar →</button>\n</nav>\n<div class="hint" id="hint"><span class="mouse"></span><span>Role para a demanda avançar</span></div>',
+      'botões de navegação'
+    );
+    patch(
+      `  let lastScene = -1;
+  nds.forEach(n => n.addEventListener('click', () => {
+    const i = +n.dataset.go; scrollTo({ top: i === 0 ? 0 : startOf(i) + 6, behavior: reduce ? 'auto' : 'smooth' });
+  }));`,
+      `  let lastScene = -1;
+  const prevScene = $('#prevScene'), nextScene = $('#nextScene'), mobileStep = $('#mobileStep');
+  function goToScene(i) {
+    const target = clamp(Math.round(i), 0, N - 1);
+    scrollTo({ top: target === 0 ? 0 : startOf(target) + 6, behavior: reduce ? 'auto' : 'smooth' });
+  }
+  nds.forEach(n => n.addEventListener('click', () => goToScene(+n.dataset.go)));
+  prevScene.addEventListener('click', () => goToScene(lastScene - 1));
+  nextScene.addEventListener('click', () => goToScene(lastScene + 1));
+
+  /* Navegação por gesto: deslizar para a esquerda avança, para a direita volta. */
+  let touchStart = null;
+  $('#stage').addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { touchStart = null; return; }
+    const t = e.touches[0]; touchStart = { x: t.clientX, y: t.clientY, time: Date.now() };
+  }, { passive: true });
+  $('#stage').addEventListener('touchend', e => {
+    if (!touchStart || !e.changedTouches.length) return;
+    const t = e.changedTouches[0], dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    const elapsed = Date.now() - touchStart.time; touchStart = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.25 && elapsed < 900) {
+      goToScene(lastScene + (dx < 0 ? 1 : -1));
+    }
+  }, { passive: true });`,
+      'botões e gesto de deslizar'
+    );
+    patch(
+      `      setDock(near);`,
+      `      setDock(near);
+      mobileStep.textContent = near === 0 ? 'Início' : String(near).padStart(2, '0') + ' / 05';
+      prevScene.disabled = near === 0;
+      nextScene.disabled = near === N - 1;
+      nextScene.textContent = near === N - 1 ? 'Fim ✓' : 'Avançar →';`,
+      'estado dos controles'
+    );
+
     document.open();
     document.write(html);
     document.close();
