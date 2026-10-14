@@ -23,14 +23,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Build standalone responsive HTML
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cat payload/part1.txt payload/part2.txt payload/part2b.txt payload/part3.txt payload/part4.txt | tr -d '\r\n ' | base64 --decode | gzip --decompress > dist/index.html
+          test -s dist/index.html
+          grep -q 'Da demanda à entrega' dist/index.html
+          echo "Built dist/index.html ($(wc -c < dist/index.html) bytes)"
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
+
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
+
       - name: Deploy site
         id: deployment
         uses: actions/deploy-pages@v4
