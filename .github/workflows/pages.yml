@@ -202,7 +202,7 @@ jobs:
               raise SystemExit("Não encontrei </body> no HTML da Thora.")
           html = html[:idx] + "\n" + mobile_css + "\n" + html[idx:]
 
-          for required in ("mobileVertical", "function renderMobile", "flex-direction:column!important", "vh * .78"):
+          for required in ("mobileVertical", "function renderMobile", "flex-direction:column!important", "vh * .18", "PRÓXIMA ETAPA"):
               if required not in html:
                   raise SystemExit("Falha ao inserir ajuste mobile: " + required)
           path.write_text(html, encoding="utf-8")
