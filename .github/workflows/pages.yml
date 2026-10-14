@@ -24,7 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build standalone responsive HTML
+      - name: Build standalone responsive HTML with mobile navigation
         shell: bash
         run: |
           set -euo pipefail
@@ -32,12 +32,121 @@ jobs:
           cat payload/part1.txt payload/part2.txt payload/part2b.txt payload/part3.txt payload/part4.txt | tr -d '\r\n ' | base64 --decode | gzip --decompress > dist/index.html
           test -s dist/index.html
           grep -q 'Da demanda à entrega' dist/index.html
-          echo "Built dist/index.html ($(wc -c < dist/index.html) bytes)"
+
+          cat > /tmp/mobile-enhancement.html <<'HTML'
+          <style>
+          @media (max-width: 860px) {
+            html { height:auto!important; min-height:100%; overflow-x:hidden!important; overflow-y:auto!important; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
+            body { height:auto!important; min-height:100%; overflow-x:hidden!important; overflow-y:visible!important; touch-action:pan-y; }
+            .stage { touch-action:pan-y!important; }
+            .hint { display:none!important; }
+            .mobile-timeline-nav { display:flex; position:fixed; z-index:60; left:12px; right:12px;
+              bottom:calc(var(--dock,104px) + env(safe-area-inset-bottom,0px) + 14px);
+              align-items:center; justify-content:space-between; gap:8px; padding:7px;
+              border:1px solid var(--line); border-radius:16px; background:var(--surf2);
+              color:var(--ink); box-shadow:var(--shadow); backdrop-filter:blur(16px);
+              -webkit-backdrop-filter:blur(16px); }
+            .mobile-timeline-nav button { min-height:40px; border:1px solid var(--line); border-radius:11px;
+              padding:8px 12px; background:var(--surf); color:var(--ink); font-size:12px; font-weight:800; }
+            .mobile-timeline-nav button.primary { background:linear-gradient(140deg,var(--vio2),var(--vio)); color:#fff; border-color:transparent; }
+            .mobile-timeline-nav button:disabled { opacity:.35; }
+            .mobile-timeline-nav .step-label { min-width:48px; text-align:center; color:var(--mut); font-size:10px; font-weight:800; }
+          }
+          </style>
+          <nav class="mobile-timeline-nav" aria-label="Navegação da timeline">
+            <button type="button" id="mobilePrev" aria-label="Ir para etapa anterior">← Voltar</button>
+            <span class="step-label" id="mobileStep" aria-live="polite">Início</span>
+            <button type="button" class="primary" id="mobileNext" aria-label="Avançar etapa">Avançar →</button>
+          </nav>
+          <script>
+          (() => {
+            const nav = document.querySelector('.mobile-timeline-nav');
+            const prev = document.getElementById('mobilePrev');
+            const next = document.getElementById('mobileNext');
+            const step = document.getElementById('mobileStep');
+            const names = ['Início','Entrada / Briefing','Pauta','Execução','Saída / Entrega','Arte final'];
+            const dwell = [.4,1.3,1.2,1.2,1.3,.9], travel = .85, totalScenes = 6;
+            const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const clamp = (v,a,b) => Math.min(b,Math.max(a,v));
+            const ease = t => t < .5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+            function timeline() {
+              const vh = window.innerHeight;
+              const starts = [], segs = []; let acc = 0;
+              for (let i=0;i<totalScenes;i++) {
+                starts[i] = acc;
+                const d = dwell[i]*vh; segs.push({i,type:'d',a:acc,len:d}); acc += d;
+                if (i<totalScenes-1) { const t=travel*vh; segs.push({i,type:'t',a:acc,len:t}); acc += t; }
+              }
+              return {starts,segs};
+            }
+            function cameraAt(y, segs) {
+              for (const s of segs) {
+                if (y <= s.a+s.len || s === segs[segs.length-1]) {
+                  const t=clamp((y-s.a)/s.len,0,1);
+                  return s.type==='d' ? s.i : s.i+ease(t);
+                }
+              }
+              return totalScenes-1;
+            }
+            function go(i) {
+              const {starts}=timeline(), target=clamp(Math.round(i),0,totalScenes-1);
+              window.scrollTo({top:target===0?0:starts[target]+6,behavior:reduced?'auto':'smooth'});
+            }
+            function update() {
+              const {segs}=timeline(), near=clamp(Math.round(cameraAt(window.scrollY,segs)),0,totalScenes-1);
+              step.textContent = near===0 ? 'Início' : String(near).padStart(2,'0')+' / 05';
+              prev.disabled = near===0;
+              next.disabled = near===totalScenes-1;
+              next.textContent = near===totalScenes-1 ? 'Fim ✓' : 'Avançar →';
+              nav.setAttribute('aria-label','Navegação da timeline. Etapa atual: '+names[near]);
+            }
+            prev.addEventListener('click',()=>go(Math.round(cameraAt(window.scrollY,timeline().segs))-1));
+            next.addEventListener('click',()=>go(Math.round(cameraAt(window.scrollY,timeline().segs))+1));
+            document.querySelectorAll('.nd[data-go]').forEach(el=>el.addEventListener('click',()=>go(Number(el.dataset.go))));
+            let touch=null;
+            const stage=document.getElementById('stage');
+            if (stage) {
+              stage.addEventListener('touchstart',e=>{
+                if(e.touches.length!==1){touch=null;return;}
+                const t=e.touches[0]; touch={x:t.clientX,y:t.clientY,at:Date.now()};
+              },{passive:true});
+              stage.addEventListener('touchend',e=>{
+                if(!touch||!e.changedTouches.length)return;
+                const t=e.changedTouches[0],dx=t.clientX-touch.x,dy=t.clientY-touch.y,elapsed=Date.now()-touch.at;
+                touch=null;
+                if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25&&elapsed<1000) {
+                  go(Math.round(cameraAt(window.scrollY,timeline().segs))+(dx<0?1:-1));
+                }
+              },{passive:true});
+            }
+            window.addEventListener('scroll',update,{passive:true});
+            window.addEventListener('resize',update);
+            update();
+          })();
+          </script>
+          HTML
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("dist/index.html")
+          html = path.read_text(encoding="utf-8")
+          fragment = Path("/tmp/mobile-enhancement.html").read_text(encoding="utf-8")
+          idx = html.lower().rfind("</body>")
+          if idx < 0:
+              raise SystemExit("Não encontrei </body> no HTML da Thora")
+          html = html[:idx] + "\n" + fragment + "\n" + html[idx:]
+          for required in ("mobile-timeline-nav", "mobilePrev", "mobileNext", "touchstart"):
+              if required not in html:
+                  raise SystemExit("Faltou implementar: " + required)
+          path.write_text(html, encoding="utf-8")
+          print(f"HTML mobile atualizado: {path.stat().st_size} bytes")
+          PY
+
+          grep -q 'mobile-timeline-nav' dist/index.html
+          echo "Build OK: $(wc -c < dist/index.html) bytes"
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
