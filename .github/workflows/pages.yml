@@ -1,4 +1,4 @@
-name: Deploy Thora to GitHub Pages
+name: Deploy Braindly to GitHub Pages
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           test -s index.html
           grep -qi '<!doctype html>' index.html
-          grep -q 'Thora' index.html
+          grep -qi 'Braindly' index.html
           grep -qi '</html>' index.html
           echo "Publishing provided index.html ($(wc -c < index.html) bytes)"
 
